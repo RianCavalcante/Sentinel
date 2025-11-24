@@ -1,0 +1,5 @@
+{
+  "name": "Dashboard de Erros n8n",
+  "description": "Um dashboard visualmente profissional para monitorar e gerenciar notificações de erro de fluxos de trabalho do n8n, com filtros e visualizações detalhadas.",
+  "requestFramePermissions": []
+}

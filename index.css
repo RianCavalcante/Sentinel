@@ -1,0 +1,595 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Dark Theme (Default) - Premium Edition */
+  --bg-primary: #1E1F22;
+  --bg-card: #2B2D31;
+  --border-color: #393B40;
+  --text-primary: #E5E7EB;
+  --text-secondary: #9CA3AF;
+  --n8n-red: #EF4E39;
+  
+  /* Premium Additions */
+  --glow-primary: rgba(239, 78, 57, 0.4);
+  --glow-secondary: rgba(147, 51, 234, 0.3);
+  --glass-bg: rgba(43, 45, 49, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] {
+  /* Light Theme */
+  --bg-primary: #F3F4F6;
+  --bg-card: #FFFFFF;
+  --border-color: #E5E7EB;
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+}
+
+body {
+  /* Premium Animated Background */
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(239, 78, 57, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(147, 51, 234, 0.04) 0%, transparent 50%),
+    linear-gradient(135deg, var(--bg-primary) 0%, #16181D 50%, var(--bg-primary) 100%);
+  background-size: 200% 200%;
+  background-attachment: fixed;
+  animation: backgroundShift 20s ease infinite;
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+@keyframes backgroundShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Premium Glow Effects */
+.glow-effect {
+  box-shadow: 
+    0 0 20px rgba(239, 78, 57, 0.15),
+    0 0 40px rgba(239, 78, 57, 0.1),
+    0 0 60px rgba(239, 78, 57, 0.05);
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glow-effect-strong {
+  box-shadow: 
+    0 0 30px rgba(239, 78, 57, 0.25),
+    0 0 60px rgba(239, 78, 57, 0.15),
+    0 0 90px rgba(239, 78, 57, 0.08);
+}
+
+/* Premium Glassmorphism */
+.glass-effect {
+  background: rgba(43, 45, 49, 0.7);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-card-premium {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card-premium:hover {
+  border-color: rgba(239, 78, 57, 0.5);
+  box-shadow: 
+    0 20px 60px rgba(239, 78, 57, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 40px rgba(239, 78, 57, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-4px);
+}
+
+/* 3D Depth Shadows */
+.shadow-3d {
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 8px rgba(0, 0, 0, 0.1),
+    0 8px 16px rgba(0, 0, 0, 0.1),
+    0 16px 32px rgba(0, 0, 0, 0.1);
+}
+
+.shadow-3d-hover:hover {
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.12),
+    0 16px 32px rgba(0, 0, 0, 0.12),
+    0 32px 64px rgba(0, 0, 0, 0.12);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--n8n-red);
+}
+
+/* Custom Date Input Calendar Styling */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  filter: invert(0.5) sepia(1) saturate(5) hue-rotate(330deg);
+  background: rgba(239, 78, 57, 0.1);
+  transform: scale(1.1);
+}
+
+/* Calendar Dropdown Styling (Webkit browsers) */
+input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+input[type="date"]::-webkit-datetime-edit-text {
+  color: var(--text-secondary);
+  padding: 0 2px;
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: var(--text-primary);
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field:hover,
+input[type="date"]::-webkit-datetime-edit-day-field:hover,
+input[type="date"]::-webkit-datetime-edit-year-field:hover {
+  background: rgba(239, 78, 57, 0.1);
+  color: var(--n8n-red);
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field:focus,
+input[type="date"]::-webkit-datetime-edit-day-field:focus,
+input[type="date"]::-webkit-datetime-edit-year-field:focus {
+  background: rgba(239, 78, 57, 0.2);
+  color: var(--n8n-red);
+  outline: none;
+}
+
+/* Clear button styling */
+input[type="date"]::-webkit-clear-button {
+  filter: invert(0.7);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+input[type="date"]::-webkit-clear-button:hover {
+  filter: invert(0.5) sepia(1) saturate(5) hue-rotate(330deg);
+  transform: scale(1.1);
+}
+
+/* ========================================
+   PREMIUM VISUAL EFFECTS
+   ======================================== */
+
+/* 1. Critical Error Glow (Pulsante) */
+@keyframes criticalGlow {
+  0%, 100% {
+    box-shadow: 
+      0 0 20px rgba(239, 68, 68, 0.3),
+      0 0 40px rgba(239, 68, 68, 0.2),
+      0 0 60px rgba(239, 68, 68, 0.1),
+      inset 0 0 20px rgba(239, 68, 68, 0.05);
+  }
+  50% {
+    box-shadow: 
+      0 0 30px rgba(239, 68, 68, 0.5),
+      0 0 60px rgba(239, 68, 68, 0.3),
+      0 0 90px rgba(239, 68, 68, 0.2),
+      inset 0 0 30px rgba(239, 68, 68, 0.1);
+  }
+}
+
+.critical-glow {
+  animation: criticalGlow 2s ease-in-out infinite;
+}
+
+/* 2. Micro-interações - Ripple Effect */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.ripple-effect:active::after {
+  width: 200px;
+  height: 200px;
+  animation: ripple 0.6s ease-out;
+}
+
+/* 3. Card Lift Effect (3D) */
+.card-lift {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 0.3s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 0 60px rgba(239, 78, 57, 0.1);
+}
+
+/* 4. Badge Pop Animation */
+@keyframes badgePop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.badge-pop {
+  animation: badgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 5. Number Counter Animation */
+@keyframes numberCount {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.number-count {
+  animation: numberCount 0.6s ease-out;
+}
+
+/* 6. Shimmer Loading Effect */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* 7. Glow Trail Effect */
+.glow-trail {
+  position: relative;
+}
+
+.glow-trail::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(239, 78, 57, 0.5),
+    transparent
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.glow-trail:hover::before {
+  opacity: 1;
+}
+
+/* 8. Smooth Fade In */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* 9. Stagger Animation (Cascata) */
+.stagger-item {
+  opacity: 0;
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0.05s; }
+.stagger-item:nth-child(2) { animation-delay: 0.1s; }
+.stagger-item:nth-child(3) { animation-delay: 0.15s; }
+.stagger-item:nth-child(4) { animation-delay: 0.2s; }
+.stagger-item:nth-child(5) { animation-delay: 0.25s; }
+
+/* 10. Tilt Effect (3D Perspective) */
+.tilt-effect {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.tilt-effect:hover {
+  transform: perspective(1000px) rotateX(2deg) rotateY(-2deg);
+}
+
+/* 11. Gradient Border Animation */
+@keyframes gradientBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-border {
+  position: relative;
+  background: linear-gradient(
+    90deg,
+    rgba(239, 78, 57, 0.5),
+    rgba(147, 51, 234, 0.5),
+    rgba(59, 130, 246, 0.5)
+  );
+  background-size: 200% 200%;
+  animation: gradientBorder 3s ease infinite;
+  padding: 1px;
+  border-radius: inherit;
+}
+
+.gradient-border > * {
+  background: var(--bg-card);
+  border-radius: inherit;
+}
+
+/* 12. Pulse Animation (Subtle) */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 13. Glow Text Effect */
+.glow-text {
+  text-shadow: 
+    0 0 10px rgba(239, 78, 57, 0.5),
+    0 0 20px rgba(239, 78, 57, 0.3),
+    0 0 30px rgba(239, 78, 57, 0.2);
+}
+
+/* 14. Smooth Scale Hover */
+.scale-hover {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.scale-hover:hover {
+  transform: scale(1.05);
+}
+
+/* 15. Magnetic Effect (Cursor Attraction) */
+.magnetic {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Aplicar em elementos críticos */
+.error-critical {
+  @apply critical-glow;
+}
+
+.button-premium {
+  @apply ripple-effect scale-hover;
+}
+
+.card-premium {
+  @apply card-lift glow-trail;
+}
+
+/* Espaçamento correto da página */
+main {
+  padding: 1.5rem 2rem !important;
+}
+
+/* Espaçamento entre header e KPIs */
+main > div:first-child {
+  margin-top: 0 !important;
+  margin-bottom: 1.5rem !important;
+}
+
+/* KPI Cards - Horizontal, Compacto e Sem Efeitos Coloridos */
+main .grid {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 1rem !important;
+  grid-template-columns: none !important;
+  overflow-x: auto !important;
+  margin-bottom: 1.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+main .grid > div {
+  padding: 1rem !important; /* Um pouco mais de respiro interno */
+  /* width: 190px !important;  <-- Removido */
+  min-width: 150px !important; /* Tamanho mínimo para não quebrar em telas pequenas */
+  /* max-width: 190px !important; <-- Removido */
+  flex: 1 !important;          /* Faz os cards ocuparem espaços iguais */
+  min-height: auto !important;
+
+  /* Premium Look */
+  border-radius: 16px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(12px); /* Efeito de vidro sutil se o fundo permitir */
+  
+  /* Animação de Entrada - Slide da esquerda */
+  animation: slideInFromLeft 0.6s ease-out forwards;
+  opacity: 0;
+  transform: translateX(-30px);
+  transition: all 0.3s ease;
+}
+
+/* Delay progressivo para cada card */
+main .grid > div:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+main .grid > div:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+main .grid > div:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+main .grid > div:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+/* Efeito Hover Neutro e Sutil - SEM cores */
+main .grid > div:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 
+    0 6px 12px rgba(0, 0, 0, 0.3),
+    0 3px 6px rgba(0, 0, 0, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Animação de Slide-in */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+main .grid > div > div > div:first-child {
+  font-size: 9px !important;
+  margin-bottom: 0.5rem !important;
+  letter-spacing: 0.5px !important;
+}
+
+main .grid > div > div > div:nth-child(2) {
+  margin-bottom: 0.625rem !important;
+  gap: 0.5rem !important;
+}
+
+main .grid > div > div > div:nth-child(2) > span:first-child {
+  font-size: 1.625rem !important;
+  line-height: 1.2 !important;
+}
+
+main .grid > div > div > div:nth-child(2) > span:last-child {
+  font-size: 0.6875rem !important;
+}
+
+main .grid > div svg {
+  height: 2.25rem !important;
+}
+
+/* Espaçamento da tabela de erros */
+main > div:last-child {
+  margin-top: 0 !important;
+}
+
+main .rounded-xl {
+  margin-top: 0 !important;
+}
+
+/* Ajuste do espaçamento do header */
+header {
+  margin-bottom: 0 !important;
+}

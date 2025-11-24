@@ -1,0 +1,729 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { 
+  AlertCircle, 
+  Activity, 
+  Search, 
+  X, 
+  Copy, 
+  Check, 
+  Filter, 
+  LayoutGrid, 
+  Settings, 
+  Bell, 
+  Zap,
+  Database,
+  ArrowUpRight,
+  RefreshCw, 
+  ArrowRight,
+  CheckCircle2,
+  Archive,
+  Menu,
+  ExternalLink,
+  Stethoscope,
+  Lightbulb,
+  ChevronLeft,
+  ChevronRight,
+  Layers, 
+  CornerDownRight,
+  Trash2,
+  LogOut
+} from 'lucide-react';
+
+// Importações do Supabase
+import { useAlerts } from './hooks/useAlerts';
+import { supabase } from './lib/supabase';
+import { AlertItem, ErrorStatus, ErrorPriority } from './types';
+import { LoginPage } from './components/LoginPage';
+import { useAuth } from './hooks/useAuth';
+import { signOut } from './lib/auth';
+
+// --- 🧠 PARSER DE MENSAGEM DA I.A. ---
+const parseAiMessage = (fullText: string) => {
+  if (!fullText) return {};
+  const extract = (regex: RegExp) => {
+    const match = fullText.match(regex);
+    return match ? match[1].trim() : null;
+  };
+  return {
+    executionId: extract(/ID da Execução:\s*(\d+)/) || 'N/A',
+    directLink: extract(/Link direto:\s*(https?:\/\/[^\s]+)/),
+    failingNode: extract(/Último nó executado:\s*(.+)/) || 'Desconhecido',
+    errorType: extract(/Tipo de erro:\s*(.+)/) || 'Erro Genérico',
+    technicalMessage: extract(/Mensagem técnica:\s*(.+)/),
+    probableCause: extract(/Causa provável:\s*(.+)/),
+    recommendedActions: extract(/✅ Ação recomendada([\s\S]*?)(?:😅|$)/) 
+      ?.split('- ')
+      .map(action => action.trim())
+      .filter(a => a) || [],
+    aiSummary: extract(/😅\s*(.+)/)
+  };
+};
+
+// --- 🛠️ UTILITÁRIOS ---
+const getSeverityFromPriority = (priority: ErrorPriority): string => {
+  switch (priority) {
+    case ErrorPriority.Critical: return 'crítica';
+    case ErrorPriority.High: return 'alta';
+    case ErrorPriority.Medium: return 'média';
+    case ErrorPriority.Low: return 'baixa';
+    default: return 'baixa';
+  }
+};
+
+const getPriorityPercentage = (priority: ErrorPriority): string => {
+  switch (priority) {
+    case ErrorPriority.Critical: return '95%';
+    case ErrorPriority.High: return '75%';
+    case ErrorPriority.Medium: return '50%';
+    case ErrorPriority.Low: return '25%';
+    default: return '50%';
+  }
+};
+
+// --- 🔄 MAPEAMENTO SUPABASE → FRONTEND ---
+const mapSupabaseToFrontend = (alert: AlertItem) => {
+  const parsed = parseAiMessage(alert.message);
+  return {
+    id: alert.id,
+    workflow_name: alert.workflowName || 'Workflow Desconhecido',
+    message: alert.message,
+    priority: getPriorityPercentage(alert.priority),
+    status: alert.status === ErrorStatus.Resolved ? 'resolvido' : 'pendente',
+    created_at: alert.timestamp,
+    workflow: { name: alert.workflowName || 'Desconhecido', type: 'Backend' },
+    errorMessage: parsed.technicalMessage || 'Erro não identificado',
+    errorCode: parsed.errorType,
+    node: parsed.failingNode,
+    severity: getSeverityFromPriority(alert.priority),
+    timestamp: alert.timestamp,
+    details: parsed
+  };
+};
+
+// --- 🎨 COMPONENTES VISUAIS ---
+
+const SpotlightCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => {
+  const divRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [opacity, setOpacity] = useState(0);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!divRef.current) return;
+    const rect = divRef.current.getBoundingClientRect();
+    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  return (
+    <div
+      ref={divRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setOpacity(1)}
+      onMouseLeave={() => setOpacity(0)}
+      className={`relative rounded-xl overflow-hidden bg-zinc-900/40 border border-white/10 group ${className}`}
+    >
+      <div
+        className="pointer-events-none absolute -inset-px opacity-0 transition duration-300 group-hover:opacity-100"
+        style={{ background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, rgba(255,255,255,0.06), transparent 40%)` }}
+      />
+      <div className="relative h-full">{children}</div>
+    </div>
+  );
+};
+
+const Sparkline = ({ data, color = "zinc" }: { data: number[]; color?: string }) => {
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const width = 100;
+  const height = 40;
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((val - min) / (max - min || 1)) * height;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const colorMap: Record<string, string> = { 
+    red: "stroke-red-500/80", 
+    emerald: "stroke-emerald-500/80", 
+    blue: "stroke-blue-500/80", 
+    zinc: "stroke-zinc-400" 
+  };
+
+  return (
+    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+      <path d={`M ${points}`} fill="none" strokeWidth="2" vectorEffect="non-scaling-stroke" className={`${colorMap[color]} opacity-50`} />
+      <circle cx={(data.length - 1) / (data.length - 1) * width} cy={height - ((data[data.length-1] - min) / (max - min || 1)) * height} r="3" className={`fill-${color}-500`} />
+    </svg>
+  );
+};
+
+const SkeletonRow = () => (
+  <div className="flex items-center gap-4 py-4 px-6 border-b border-white/5 animate-pulse">
+    <div className="w-24 h-6 bg-white/5 rounded-full" /> 
+    <div className="flex-1 space-y-2"><div className="w-32 h-4 bg-white/5 rounded" /><div className="w-20 h-3 bg-white/5 rounded" /></div>
+    <div className="w-24 h-6 bg-white/5 rounded hidden sm:block" /><div className="w-24 h-4 bg-white/5 rounded hidden sm:block" /><div className="w-16 h-4 bg-white/5 rounded text-right" /> 
+  </div>
+);
+
+const SkeletonKPI = () => (
+  <div className="p-6 rounded-xl bg-zinc-900/40 border border-white/5 animate-pulse h-[140px]">
+    <div className="flex justify-between mb-4"><div className="w-24 h-4 bg-white/5 rounded" /><div className="w-12 h-4 bg-white/5 rounded" /></div>
+    <div className="mt-8 w-16 h-8 bg-white/10 rounded" />
+  </div>
+);
+
+const Badge = ({ severity, status }: { severity: string; status: string }) => {
+  if (status === 'resolvido') {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/20 ring-1 ring-emerald-500/50" />
+        <span className="text-xs font-medium text-emerald-500 capitalize">Resolvido</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`w-1.5 h-1.5 rounded-full ${severity === 'crítica' ? 'bg-red-500' : severity === 'alta' ? 'bg-orange-500' : severity === 'média' ? 'bg-yellow-500' : 'bg-zinc-500'}`} />
+      <span className={`text-xs font-medium capitalize ${severity === 'crítica' ? 'text-red-500' : severity === 'alta' ? 'text-orange-500' : severity === 'média' ? 'text-yellow-500' : 'text-zinc-400'}`}>{severity}</span>
+    </div>
+  );
+};
+
+const StatCard = ({ title, value, trend, trendData, color = "zinc" }: { title: string; value: string | number; trend?: string; trendData?: number[]; color?: string }) => (
+  <SpotlightCard className="h-full flex flex-col justify-between p-6">
+    <div className="flex justify-between items-start mb-2 relative z-10">
+      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{title}</p>
+      {trend && (
+        <span className={`flex items-center text-xs px-1.5 py-0.5 rounded ${trend.startsWith('+') ? 'text-red-400 bg-red-500/5' : 'text-emerald-400 bg-emerald-500/5'}`}>
+          <ArrowUpRight size={12} className={`mr-1 ${trend.startsWith('-') ? 'rotate-180' : ''}`} /> {trend}
+        </span>
+      )}
+    </div>
+    <div className="flex items-end justify-between relative z-10">
+      <h3 className="text-3xl font-medium text-zinc-100 tracking-tight font-mono">{value}</h3>
+      <div className="w-24 h-8">{trendData && <Sparkline data={trendData} color={color} />}</div>
+    </div>
+  </SpotlightCard>
+);
+
+const Toast = ({ message, type = 'info', onClose }: { message: string; type?: 'info' | 'error' | 'success'; onClose: () => void }) => {
+  useEffect(() => { const timer = setTimeout(onClose, 4000); return () => clearTimeout(timer); }, [onClose]);
+  return (
+    <div className="animate-slide-in-right fixed bottom-6 right-6 z-50 flex items-center gap-3 p-4 rounded-xl bg-zinc-900 border border-white/10 shadow-2xl backdrop-blur-xl max-w-sm">
+      <div className={`p-2 rounded-full ${type === 'error' ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>{type === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}</div>
+      <div><p className="text-sm font-medium text-zinc-200">{type === 'error' ? 'Novo Erro Detectado' : 'Sucesso'}</p><p className="text-xs text-zinc-500 truncate max-w-[200px]">{message}</p></div>
+      <button onClick={onClose} className="ml-auto text-zinc-500 hover:text-white"><X size={14} /></button>
+    </div>
+  );
+};
+
+const NavItem = ({ icon: Icon, label, active, onClick, badge, collapsed }: { icon: React.ElementType; label: string; active?: boolean; onClick?: () => void; badge?: number; collapsed?: boolean }) => (
+  <button 
+    onClick={onClick}
+    className={`
+      group relative flex items-center px-3 py-2.5 rounded-xl text-sm transition-all duration-300 w-full outline-none overflow-hidden
+      ${active 
+        ? 'text-zinc-100 bg-white/[0.08]' 
+        : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+      }
+      ${collapsed ? 'justify-center' : 'justify-between'}
+      active:scale-[0.98]
+    `}
+  >
+    {active && (
+      <>
+        <div className="absolute left-0 top-2 bottom-2 w-[2px] bg-zinc-100 rounded-r-full shadow-[0_0_10px_rgba(255,255,255,0.5)] animate-fade-in" />
+      </>
+    )}
+
+    <div className={`relative z-10 flex items-center gap-3 ${active && !collapsed ? 'translate-x-1.5' : ''} transition-transform duration-300 ease-out`}>
+      <Icon 
+        size={18} 
+        strokeWidth={active ? 2 : 1.5} 
+        className={`
+          ${active ? "text-zinc-100 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]" : "text-zinc-500 group-hover:text-zinc-300"} 
+          transition-all duration-300
+        `} 
+      />
+      {!collapsed && <span className={`font-medium tracking-wide ${active ? 'text-white' : ''}`}>{label}</span>}
+    </div>
+    
+    {!collapsed && badge && badge > 0 && (
+      <span className={`
+        relative z-10 text-[10px] font-bold px-1.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center shadow-sm transition-all border
+        ${active 
+          ? 'bg-zinc-100 text-black border-transparent shadow-[0_0_10px_rgba(255,255,255,0.2)]' 
+          : 'bg-zinc-800 text-zinc-400 border-white/10 group-hover:border-white/20 group-hover:text-zinc-200'}`}>
+        {badge}
+      </span>
+    )}
+    
+    {collapsed && badge && badge > 0 && (
+      <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full ring-2 ring-zinc-950" />
+    )}
+
+    {collapsed && (
+      <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-zinc-900/95 border border-white/10 text-zinc-200 text-xs font-medium rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-200 shadow-xl z-50 translate-x-[-5px] group-hover:translate-x-0 backdrop-blur-sm">
+        {label} {badge && badge > 0 && <span className="ml-1 text-zinc-400">({badge})</span>}
+        <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 border-4 border-transparent border-r-zinc-900/95" />
+      </div>
+    )}
+  </button>
+);
+
+const DetailSidebar = ({ error, onClose, onResolve }: { error: any; onClose: () => void; onResolve: (ids: string | string[]) => void }) => {
+  const [copied, setCopied] = useState(false);
+  
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    if (error) window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [error, onClose]);
+
+  if (!error) return null;
+  const details = error.details; 
+  const isGroup = error.isGroup; 
+
+  const handleCopy = () => { navigator.clipboard.writeText(error.message); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300" onClick={onClose} />
+      <div className="fixed top-0 right-0 h-full w-full md:w-[600px] bg-[#0c0c0e]/95 backdrop-blur-xl md:border-l border-white/10 shadow-2xl z-50 flex flex-col animate-slide-in">
+        <div className="px-6 md:px-8 py-6 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md z-10">
+          <div className="flex-1 min-w-0 mr-4">
+            <h2 className="text-lg font-medium text-zinc-100 flex items-center gap-2">
+              {isGroup ? `Grupo de Erros (${error.count}x)` : 'Detalhes'}
+              {error.status === 'resolvido' && <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] border border-emerald-500/20 rounded">Resolvido</span>}
+            </h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-zinc-500 font-mono">Último ID: {details.executionId}</span>
+              {details.directLink && (<a href={details.directLink} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"><ExternalLink size={10} /> Link</a>)}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+             {error.status !== 'resolvido' && (
+              <button 
+                onClick={() => onResolve(isGroup ? error.ids : error.id)} 
+                className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 rounded-lg text-xs font-medium transition-colors"
+              >
+                <CheckCircle2 size={14} /> 
+                <span className="hidden sm:inline">{isGroup ? `Resolver Todos (${error.count})` : 'Resolver'}</span>
+              </button>
+             )}
+            <button onClick={onClose} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors rounded-lg hover:bg-white/10"><X size={20} /></button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 z-10">
+          <div className="grid grid-cols-2 gap-4">
+             <div className="p-4 rounded-lg bg-white/5 border border-white/5">
+               <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Workflow</span>
+               <span className="text-sm text-zinc-200 block truncate" title={error.workflow_name}>{error.workflow_name}</span>
+             </div>
+             <div className="p-4 rounded-lg bg-white/5 border border-white/5">
+               <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Nó Falho</span>
+               <span className="text-sm text-red-400 block truncate" title={details.failingNode}>{details.failingNode}</span>
+             </div>
+          </div>
+          <div className="space-y-3">
+            <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-2"><Stethoscope size={14} /> Diagnóstico IA</h3>
+            <div className="p-5 bg-red-500/[0.05] border border-red-500/10 rounded-xl space-y-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-[60px] rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+              <div className="relative z-10">
+                <span className="text-[10px] text-red-400/70 font-mono mb-1 block">ERRO TÉCNICO</span><p className="text-sm text-red-300 font-mono leading-relaxed">{details.technicalMessage || "N/A"}</p>
+              </div>
+              {details.probableCause && (<div className="pt-4 border-t border-red-500/10 relative z-10"><span className="text-[10px] text-zinc-500 mb-1 block">CAUSA PROVÁVEL</span><p className="text-sm text-zinc-300">{details.probableCause}</p></div>)}
+            </div>
+          </div>
+          {details.recommendedActions && details.recommendedActions.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-2"><Lightbulb size={14} className="text-yellow-500" /> Recomendações</h3>
+              <ul className="space-y-2">{details.recommendedActions.map((action: string, idx: number) => (<li key={idx} className="flex gap-3 p-3 rounded-lg bg-zinc-900/50 border border-white/5 text-sm text-zinc-300 hover:bg-zinc-800/50 transition-colors"><span className="text-emerald-500 mt-0.5">✓</span>{action}</li>))}</ul>
+            </div>
+          )}
+          <div className="pt-4 border-t border-white/5">
+            <div className="flex justify-between items-center mb-2"><label className="text-[10px] font-medium text-zinc-600 uppercase tracking-wider">Mensagem Original</label><button onClick={handleCopy} className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">{copied ? <Check size={10} /> : <Copy size={10} />} {copied ? "Copiado" : "Copiar"}</button></div>
+            <div className="bg-[#050505] border border-white/5 rounded-lg p-3 overflow-hidden group hover:border-white/10 transition-colors"><pre className="text-[10px] font-mono text-zinc-500 leading-relaxed whitespace-pre-wrap group-hover:text-zinc-400 transition-colors">{error.message}</pre></div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+// --- APP PRINCIPAL ---
+
+export default function N8nDashboardPro() {
+  // Auth state
+  const { user, loading: authLoading, isAuthenticated } = useAuth();
+  
+  const [selectedError, setSelectedError] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeView, setActiveView] = useState('live');
+  const [statusFilter, setStatusFilter] = useState('pendente');
+  const [severityFilter, setSeverityFilter] = useState('todas');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false); 
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null); 
+  const [isGrouped, setIsGrouped] = useState(false);
+  
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Registrar Service Worker e solicitar permissão para notificações
+  useEffect(() => {
+    const setupNotifications = async () => {
+      // Importar o NotificationManager
+      const { NotificationManager } = await import('./lib/notifications');
+      
+      // Registrar Service Worker
+      const swRegistered = await NotificationManager.registerServiceWorker();
+      
+      if (swRegistered) {
+        // Solicitar permissão de notificação
+        const permission = await NotificationManager.requestPermission();
+        
+        if (permission === 'granted') {
+          console.log('✅ Notificações habilitadas via Service Worker');
+        } else {
+          console.warn('⚠️ Permissão de notificação negada');
+        }
+      }
+    };
+
+    setupNotifications();
+  }, []);
+
+  useEffect(() => {
+    const audio = new Audio('https://azhgoxcsjytqpwtkqrus.supabase.co/storage/v1/object/sign/notificadash/new-notification-05-352453.mp3?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xOWFjMzcxYy04MDA4LTQ0YjktYmE1OS0xM2Q4YjNjNjcyZDUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJub3RpZmljYWRhc2gvbmV3LW5vdGlmaWNhdGlvbi0wNS0zNTI0NTMubXAzIiwiaWF0IjoxNzYzODI5NTExLCJleHAiOjE3NjQwODg3MTF9.uGKPrvLWVrqn3Y7zEU88aeYDWCI26KP4MQsWUQ0XGWw');
+    audio.volume = 0.3; // Volume mais suave e profissional
+    audio.preload = 'auto';
+    audio.load();
+    audioRef.current = audio;
+  }, []);
+
+  const handleNewAlert = React.useCallback(async (alert: AlertItem) => {
+    const workflowName = alert.workflowName || 'Workflow';
+    
+    // Toast visual no dashboard
+    setToast({ message: `Novo alerta: ${workflowName}`, type: 'info' });
+    
+    // Som de notificação
+    if (isSoundEnabled && audioRef.current) {
+      const sound = audioRef.current.cloneNode(true) as HTMLAudioElement;
+      sound.volume = 0.3; // Volume mais suave e profissional
+      sound.play().catch(e => console.error('Erro ao tocar som:', e));
+    }
+
+    // Notificação via Service Worker
+    try {
+      const { NotificationManager } = await import('./lib/notifications');
+      await NotificationManager.sendNotification(alert);
+    } catch (error) {
+      console.error('Erro ao enviar notificação:', error);
+    }
+  }, [isSoundEnabled]);
+
+  // Estabilizar filtros para evitar loop infinito
+  const filters = useMemo(() => ({
+    searchTerm,
+    status: statusFilter === 'todos' ? undefined : statusFilter === 'pendente' ? ErrorStatus.New : ErrorStatus.Resolved,
+    onNewAlert: handleNewAlert
+  }), [searchTerm, statusFilter, handleNewAlert]);
+
+  // Hook do Supabase
+  const { alerts, loading: supabaseLoading, totalCount } = useAlerts({
+    page: 1,
+    pageSize: 100,
+    filters
+  });
+
+  // Estado de loading artificial para mostrar o Skeleton
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Sempre mostrar skeleton quando autenticado e dados carregarem
+    if (isAuthenticated && !supabaseLoading) {
+      // Delay de 2 segundos para mostrar o efeito premium
+      const timer = setTimeout(() => setLoading(false), 2000);
+      return () => clearTimeout(timer);
+    }
+    
+    // Reset loading quando não autenticado ou dados estão carregando
+    if (!isAuthenticated || supabaseLoading) {
+      setLoading(true);
+    }
+  }, [isAuthenticated, supabaseLoading]);
+
+  // Mapear dados do Supabase para o formato do frontend
+  const [errors, setErrors] = useState<any[]>([]);
+
+  useEffect(() => {
+    const mapped = alerts.map(mapSupabaseToFrontend);
+    setErrors(mapped);
+  }, [alerts]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) { setIsFilterMenuOpen(false); }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [filterRef]);
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+  
+  const handleResolve = async (ids: string | string[]) => {
+    const idsArray = Array.isArray(ids) ? ids : [ids];
+    
+    const { error } = await supabase
+      .from('errors')
+      .update({ status: ErrorStatus.Resolved })
+      .in('id', idsArray);
+    
+    if (!error) {
+      setErrors(prev => prev.map(err => 
+        idsArray.includes(err.id) ? { ...err, status: 'resolvido' } : err
+      ));
+      
+      if (selectedError) {
+        const currentId = selectedError.id;
+        if (selectedError.isGroup && selectedError.ids.some((id: string) => idsArray.includes(id))) {
+             setSelectedError((prev: any) => ({ ...prev, status: 'resolvido' }));
+        } else if (idsArray.includes(currentId)) {
+             setSelectedError((prev: any) => ({ ...prev, status: 'resolvido' }));
+        }
+      }
+      setToast({ message: `${idsArray.length} erro(s) resolvido(s)`, type: 'success' });
+    } else {
+      setToast({ message: 'Erro ao resolver', type: 'error' });
+    }
+  };
+
+  const handleDelete = async (item: any, e: React.MouseEvent) => {
+    e.stopPropagation(); 
+    const idsToDelete = item.isGroup ? item.ids : [item.id];
+    
+    const { error } = await supabase
+      .from('errors')
+      .delete()
+      .in('id', idsToDelete);
+    
+    if (!error) {
+      setErrors(prev => prev.filter(err => !idsToDelete.includes(err.id)));
+      
+      if (selectedError && idsToDelete.includes(selectedError.id)) {
+          setSelectedError(null);
+      }
+      setToast({ message: `${idsToDelete.length} item(s) removido(s)`, type: 'success' });
+    } else {
+      setToast({ message: 'Erro ao deletar', type: 'error' });
+    }
+  };
+
+  const processedData = useMemo(() => {
+    let filtered = errors.filter(e => {
+      const searchStr = `${e.workflow_name} ${e.details.errorType} ${e.details.executionId}`.toLowerCase();
+      const matchesSearch = searchStr.includes(searchTerm.toLowerCase());
+      let matchesStatus = (statusFilter === 'pendente') ? e.status !== 'resolvido' : (statusFilter === 'resolvido') ? e.status === 'resolvido' : true;
+      let matchesSeverity = (severityFilter !== 'todas') ? e.severity === severityFilter : true;
+      return matchesSearch && matchesStatus && matchesSeverity;
+    });
+
+    if (isGrouped) {
+      const groups: Record<string, any> = {};
+      filtered.forEach(err => {
+        const key = `${err.workflow_name}|${err.node}|${err.errorCode}`;
+        if (!groups[key]) {
+          groups[key] = { 
+            ...err, 
+            count: 0, 
+            ids: [], 
+            isGroup: true 
+          }; 
+        }
+        groups[key].count += 1;
+        groups[key].ids.push(err.id);
+        if (new Date(err.timestamp) > new Date(groups[key].timestamp)) {
+            groups[key].timestamp = err.timestamp;
+            groups[key].id = err.id; 
+            groups[key].details = err.details; 
+        }
+      });
+      return Object.values(groups).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+
+    return filtered;
+  }, [errors, searchTerm, statusFilter, severityFilter, isGrouped]);
+
+  useEffect(() => { setFocusedIndex(-1); }, [processedData]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedError) return; 
+      if (e.key === 'ArrowDown') { e.preventDefault(); setFocusedIndex(prev => Math.min(prev + 1, processedData.length - 1)); } 
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setFocusedIndex(prev => Math.max(prev - 1, 0)); } 
+      else if (e.key === 'Enter' && focusedIndex >= 0) { e.preventDefault(); setSelectedError(processedData[focusedIndex]); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [processedData, focusedIndex, selectedError]);
+
+  const criticalErrorsCount = errors.filter(e => e.severity === 'crítica' && e.status !== 'resolvido').length;
+  const totalErrorsCount = errors.filter(e => e.status !== 'resolvido').length;
+  
+  const sparklineData1 = [12, 10, 15, 8, 12, 18, totalErrorsCount || 5];
+  const sparklineData2 = [50, 45, 40, 35, 30, 25, 14];
+  const sparklineData3 = [2, 3, 1, 4, 2, 1, criticalErrorsCount || 1];
+
+  // Mostrar loading durante verificação de auth
+  if (authLoading) {
+    return (
+      <div className="flex h-screen bg-[#09090b] items-center justify-center">
+        <div className="text-zinc-500">Carregando...</div>
+      </div>
+    );
+  }
+
+  // Mostrar login se não autenticado
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  // Mostrar dashboard
+  return (
+    <div className="flex h-screen bg-[#09090b] text-zinc-400 font-sans antialiased selection:bg-zinc-800 selection:text-zinc-200 overflow-hidden">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+        @keyframes slide-in-up-fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-row { animation: slide-in-up-fade 0.3s ease-out forwards; opacity: 0; }
+        @keyframes slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .animate-slide-in { animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slide-in-right { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .animate-slide-in-right { animation: slide-in-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+      `}</style>
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {isSidebarOpen && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={() => setIsSidebarOpen(false)} />)}
+
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute bottom-0 left-0 -mb-32 -ml-32 w-96 h-96 bg-zinc-500/5 rounded-full blur-[128px]"></div>
+        <div className="absolute top-0 right-0 -mt-32 -mr-32 w-96 h-96 bg-zinc-500/5 rounded-full blur-[128px]"></div>
+      </div>
+
+      <div className={`fixed md:static inset-y-0 left-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-r border-white/5 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'w-20' : 'w-64'}`}>
+        <div className={`p-6 mb-4 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          <div className="flex items-center gap-2 text-zinc-100 font-medium tracking-tight">
+            <div className="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center text-black text-[12px] font-bold shadow-lg shadow-white/10 shrink-0 transition-transform hover:scale-105">N</div>
+            {!isCollapsed && <span className="animate-fade-in">Sentinel</span>}
+          </div>
+          {!isCollapsed && (<button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-zinc-500 hover:text-white"><X size={18} /></button>)}
+        </div>
+        <div className="px-3 space-y-1 flex-1 overflow-y-auto overflow-x-hidden">
+          <NavItem icon={LayoutGrid} label="Visão Geral" active={activeView === 'overview'} onClick={() => {setActiveView('overview'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+          <NavItem icon={Activity} label="Pendentes" active={activeView === 'live'} onClick={() => {setActiveView('live'); setStatusFilter('pendente'); setIsSidebarOpen(false);}} badge={totalErrorsCount} collapsed={isCollapsed} />
+          <NavItem icon={Archive} label="Resolvidos" active={activeView === 'resolved'} onClick={() => {setActiveView('resolved'); setStatusFilter('resolvido'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+          <NavItem icon={Database} label="Todos os Logs" active={activeView === 'logs'} onClick={() => {setActiveView('logs'); setStatusFilter('todos'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+          <div className="my-4 border-t border-white/5 mx-3" />
+          <NavItem icon={Settings} label="Configurações" collapsed={isCollapsed} />
+        </div>
+        <div className="px-3 pb-2 hidden md:flex justify-end">
+           <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-white/5 rounded-lg transition-colors">{isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}</button>
+        </div>
+        <div className={`p-4 m-3 rounded-lg bg-zinc-900/30 border border-white/5 flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+          <div className="w-8 h-8 rounded bg-gradient-to-b from-zinc-700 to-zinc-800 shrink-0" />
+          {!isCollapsed && (<div className="flex flex-col overflow-hidden"><span className="text-xs font-medium text-zinc-200 truncate">Espaço de Trabalho</span><span className="text-[10px] text-zinc-500 truncate">Plano Pro</span></div>)}
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0 bg-transparent relative z-10">
+        <header className="h-16 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-[#09090b]/50 backdrop-blur-xl sticky top-0 z-20 shrink-0">
+          <div className="flex items-center gap-3 md:gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 -ml-2 text-zinc-500 hover:text-zinc-200"><Menu size={20} /></button>
+            <div className="flex items-center gap-2 text-sm text-zinc-500 whitespace-nowrap overflow-hidden font-mono tracking-tight">
+              <span className="hidden sm:inline">Dashboards</span><span className="hidden sm:inline text-zinc-700">/</span><span className="text-zinc-200 truncate max-w-[150px] sm:max-w-none">{activeView === 'live' ? 'Erros Abertos' : activeView === 'resolved' ? 'Resolvidos' : 'Visão Geral'}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4 ml-auto">
+            <button onClick={() => setIsSoundEnabled(!isSoundEnabled)} className={`p-2 transition-colors ${isSoundEnabled ? 'text-zinc-500 hover:text-zinc-300' : 'text-red-500 hover:text-red-400'}`} title={isSoundEnabled ? "Silenciar" : "Ativar Som"}>
+              {isSoundEnabled ? <Zap size={18} className="fill-current" /> : <Zap size={18} className="opacity-50" />}
+            </button>
+            <div className="relative group hidden sm:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-zinc-400 transition-colors" size={14} />
+              <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Pesquisar logs..." className="bg-zinc-900/50 border border-white/5 rounded-full pl-9 pr-4 py-1.5 text-sm text-zinc-300 focus:outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-800 transition-all w-32 md:w-64 placeholder:text-zinc-700" />
+            </div>
+            <button className="sm:hidden p-2 text-zinc-500 hover:text-zinc-200"><Search size={18} /></button>
+            <button className="relative p-2 text-zinc-500 hover:text-zinc-300 transition-colors"><Bell size={18} /><span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full ring-2 ring-[#09090b]" /></button>
+            
+            {/* Logout button */}
+            <button 
+              onClick={async () => {
+                await signOut();
+                window.location.reload();
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-500 hover:text-zinc-200 hover:bg-white/5 rounded-lg transition-colors"
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {processedData.map((error, index) => {
+                      const isFocused = index === focusedIndex;
+                      return (
+                        <tr key={error.id} onClick={() => setSelectedError(error)} className={`group transition-colors cursor-pointer text-sm animate-row ${error.status === 'resolvido' ? 'bg-zinc-900/20 opacity-60 hover:opacity-100' : 'hover:bg-white/[0.02]'} ${isFocused ? 'bg-white/[0.03] ring-1 ring-inset ring-white/10' : ''}`} style={{ animationDelay: `${index * 30}ms` }}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Badge severity={error.severity} status={error.status} />
+                              {error.isGroup && <span className="text-[10px] bg-white/10 text-zinc-200 px-1.5 py-0.5 rounded font-mono border border-white/5">{error.count}x</span>}
+                              {!error.isGroup && <span className="text-[10px] font-mono text-zinc-600">{error.priority}</span>}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 min-w-[200px]">
+                            <div className="flex flex-col">
+                              <span className={`font-medium ${error.status === 'resolvido' ? 'text-zinc-500 line-through' : 'text-zinc-200'}`} title={error.workflow.name}>{error.workflow.name}</span>
+                              <span className="text-zinc-600 text-xs mt-0.5">Backend</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 min-w-[150px]">
+                            <span className="font-mono text-xs text-zinc-400 bg-white/[0.03] px-2 py-1 rounded border border-white/5" title={error.errorCode || 'N/A'}>{error.errorCode || 'N/A'}</span>
+                          </td>
+                          <td className="px-6 py-4 text-zinc-500 min-w-[150px]" title={error.node}>{error.node}</td>
+                          <td className="px-6 py-4 text-right text-zinc-500 font-mono text-xs whitespace-nowrap">{new Date(error.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={(e) => handleDelete(error, e)} className="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Excluir"><Trash2 size={14} /></button>
+                                {isFocused ? <CornerDownRight size={14} className="text-zinc-400" /> : <ArrowRight size={14} className="text-zinc-600" />}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {!loading && processedData.length === 0 && (<div className="py-12 text-center text-zinc-600 text-sm flex flex-col items-center gap-2"><div className="p-2 rounded-full bg-zinc-900 border border-white/5 text-zinc-700"><Check size={18} /></div><p>Nenhum registro encontrado.</p></div>)}
+            </div>
+            <div className="px-6 py-3 border-t border-white/5 flex justify-between items-center text-[10px] text-zinc-600 bg-zinc-900/30">
+              <span>{processedData.length} registros</span>
+              <div className="flex gap-3"><span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white/5 rounded border border-white/10 font-mono">↓</kbd> <kbd className="px-1.5 py-0.5 bg-white/5 rounded border border-white/10 font-mono">↑</kbd> Navegar</span><span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white/5 rounded border border-white/10 font-mono">ENTER</kbd> Abrir</span></div>
+            </div>
+          </div>
+        </main>
+      </div>
+      <DetailSidebar error={selectedError} onClose={() => setSelectedError(null)} onResolve={handleResolve} />
+    </div>
+  );
+}
