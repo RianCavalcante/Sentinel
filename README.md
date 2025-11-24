@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🛡️ Sentinel - Dashboard de Erros n8n
 
 Dashboard em tempo real para monitoramento e gerenciamento de erros do n8n, com notificações push, sistema de perfil e tutorial interativo.
@@ -298,3 +299,6 @@ Este projeto é licenciado sob a licença MIT - veja o arquivo LICENSE para deta
 - [React Joyride](https://react-joyride.com) - Tour interativo
 - [Lucide](https://lucide.dev) - Ícones
 - [Tailwind CSS](https://tailwindcss.com) - Styling
+=======
+# Sentinel
+>>>>>>> c3b480e508e307f43a7a09de2bcc48f1ff816dd9

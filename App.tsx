@@ -291,7 +291,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const audio = new Audio('https://azhgoxcsjytqpwtkqrus.supabase.co/storage/v1/object/sign/notificadash/new-notification-05-352453.mp3?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8xOWFjMzcxYy04MDA4LTQ0YjktYmE1OS0xM2Q4YjNjNjcyZDUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJub3RpZmljYWRhc2gvbmV3LW5vdGlmaWNhdGlvbi0wNS0zNTI0NTMubXAzIiwiaWF0IjoxNzYzODI5NTExLCJleHAiOjE3NjQwODg3MTF9.uGKPrvLWVrqn3Y7zEU88aeYDWCI26KP4MQsWUQ0XGWw');
+    const audio = new Audio('/notification.mp3');
     audio.volume = 0.3;
     audio.preload = 'auto';
     audio.load();
