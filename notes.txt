@@ -1,0 +1,14 @@
+Sess√£o de 2025-11-24
+- Vari√°veis carregadas de .env: VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.
+- Conex√£o Supabase validada via @supabase/supabase-js: select * from errors limit 1 retornou registro id 774571c5-c685-4832-aeba-26660894db8c (workflow "My workflow 2", status resolvido).
+- Build executado com sucesso: npm run build (warning apenas por chunk ~650 kB; avaliar code-splitting/manualChunks se necess√°rio).
+- 2025-11-24: Redesign da LoginPage com painel destaque + card de login glassmorphism, novos icones e texto ajustado. Placeholder de senha corrigido.
+- 2025-11-24: Ajuste sutil na LoginPage com efeito de " border beam\ animado no card de autenticaÁ„o e manutenÁ„o do layout em duas colunas.
+- 2025-11-24: Criado componente BorderBeam (props size/duration/delay) e aplicado na LoginPage para efeito de borda animada configuravel.
+- 2025-11-24: BorderBeam agora aceita cores (colorFrom/colorMid/colorTo) e usei gradiente mais frio no card de login; duration 18s, delay -3s para efeito sutil.
+- 2025-11-24: BorderBeam agora aceita timingFunction (controla motion). Login usa ease-in-out com cores frias.
+- 2025-11-24: BorderBeam agora aceita beamClassName para customizar a camada de feixe (classe extra).
+- 2025-11-24: BorderBeam ganhou beamStyle (inline style para a camada do feixe) mantendo beamClassName.
+- 2025-11-24: BorderBeam agora tem reverse (inverte direcao da animacao via CSS var) e usa animation-direction configuravel.
+- 2025-11-24: BorderBeam ganhou offset (0-100%) para deslocar inicio da animacao; keyframes usam var(--beam-offset).
+- 2025-11-24: BorderBeam ganhou beamWidth (largura da borda) mapeado para CSS var --beam-border-width; keyframes/borda atualizados.

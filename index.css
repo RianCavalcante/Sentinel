@@ -45,6 +45,18 @@ body {
   50% { background-position: 100% 50%; }
 }
 
+@keyframes borderBeamSpin {
+  from { transform: rotate(var(--beam-offset, 0deg)); }
+  to { transform: rotate(calc(360deg + var(--beam-offset, 0deg))); }
+}
+
+.border-beam-anim {
+  animation: borderBeamSpin var(--beam-duration, 14s) var(--beam-timing, linear) infinite;
+  animation-delay: var(--beam-delay, 0s);
+  animation-direction: var(--beam-direction, normal);
+  border: var(--beam-border-width, 1px) solid transparent;
+}
+
 /* Premium Glow Effects */
 .glow-effect {
   box-shadow: 
