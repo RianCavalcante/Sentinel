@@ -108,50 +108,25 @@ const NavItem = ({ icon: Icon, label, active, onClick, badge, collapsed }: any) 
   </button>
 );
 
-const StatCard = ({ title, value, trend, trendData, color }: any) => {
+const StatCard = ({ title, value, trend, color }: any) => {
   const isPositive = trend?.startsWith('+');
   const trendColor = color === 'red' ? (isPositive ? 'text-red-400' : 'text-emerald-400') : (isPositive ? 'text-emerald-400' : 'text-red-400');
   
   return (
-    <div className="group relative overflow-hidden rounded-lg border border-white/10 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 backdrop-blur-xl p-4 transition-all duration-300 hover:border-white/20 hover:shadow-xl hover:shadow-black/50">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      <div className="relative z-10">
-        <div className="text-zinc-500 text-[10px] font-medium uppercase tracking-wider mb-2">{title}</div>
-        <div className="flex items-baseline gap-2 mb-3">
-          <span className="text-3xl font-bold text-zinc-100 tabular-nums">{value}</span>
+    <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#0c0c0e] p-5 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.02]">
+      <div className="flex flex-col gap-1">
+        <div className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">{title}</div>
+        <div className="flex items-end justify-between mt-1">
+          <span className="text-3xl font-semibold text-zinc-100 tabular-nums tracking-tight">{value}</span>
           {trend && (
-            <span className={`flex items-center gap-1 text-xs font-medium ${trendColor}`}>
-              {isPositive && <ArrowUpRight size={12} />}
+            <span className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${isPositive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+              {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
               {trend}
             </span>
           )}
         </div>
-        {trendData && <Sparkline data={trendData} color={color} />}
       </div>
     </div>
-  );
-};
-
-const Sparkline = ({ data, color }: { data: number[]; color: string }) => {
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-  const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * 100;
-    const y = 100 - ((val - min) / range) * 100;
-    return `${x},${y}`;
-  }).join(' ');
-  
-  return (
-    <svg className="w-full h-12 opacity-60 group-hover:opacity-100 transition-opacity" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <polyline
-        points={points}
-        fill="none"
-        stroke={color === 'red' ? '#ef4444' : '#10b981'}
-        strokeWidth="2"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
   );
 };
 
@@ -680,10 +655,6 @@ export default function App() {
   const criticalErrorsCount = errors.filter(e => e.severity === 'crítica' && e.status !== 'resolvido').length;
   const totalErrorsCount = errors.filter(e => e.status !== 'resolvido').length;
   
-  const sparklineData1 = [12, 10, 15, 8, 12, 18, totalErrorsCount || 5];
-  const sparklineData2 = [50, 45, 40, 35, 30, 25, 14];
-  const sparklineData3 = [2, 3, 1, 4, 2, 1, criticalErrorsCount || 1];
-
   if (authLoading) {
     return (
       <div className="flex h-screen bg-[#09090b] items-center justify-center">
@@ -844,10 +815,10 @@ export default function App() {
               </>
             ) : (
               <>
-                <StatCard title="Erros Abertos" value={totalErrorsCount} trend="+12%" trendData={sparklineData1} color="red" />
-                <StatCard title="Tempo Médio" value="14m" trend="-8%" trendData={sparklineData2} color="emerald" />
-                <StatCard title="Erros Críticos" value={criticalErrorsCount} trend="+2" trendData={sparklineData3} color="red" />
-                <StatCard title="Erros Resolvidos" value={errors.filter(e => e.status === 'resolvido').length} trend="-5%" trendData={[15, 18, 12, 20, 16, 14, errors.filter(e => e.status === 'resolvido').length]} color="emerald" />
+                <StatCard title="Erros Abertos" value={totalErrorsCount} trend="+12%" color="red" />
+                <StatCard title="Tempo Médio" value="14m" trend="-8%" color="emerald" />
+                <StatCard title="Erros Críticos" value={criticalErrorsCount} trend="+2" color="red" />
+                <StatCard title="Erros Resolvidos" value={errors.filter(e => e.status === 'resolvido').length} trend="-5%" color="emerald" />
               </>
             )}
           </div>
