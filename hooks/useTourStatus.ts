@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 
 const TOUR_STORAGE_KEY = 'sentinel_tour_completed';
-const TOUR_RESET_DAYS = 20; // Tour reaparece a cada 20 dias
+const TOUR_RESET_DAYS = 15; // Tour reaparece a cada 15 dias
 
 export function useTourStatus(user: User | null) {
   const [runTour, setRunTour] = useState(false);
@@ -26,13 +26,13 @@ export function useTourStatus(user: User | null) {
       
       return () => clearTimeout(timer);
     } else {
-      // Verificar se passaram 20 dias desde a última vez
+      // Verificar se passaram 15 dias desde a última vez
       try {
         const completedTimestamp = parseInt(tourCompletedData);
         const daysSinceCompleted = (Date.now() - completedTimestamp) / (1000 * 60 * 60 * 24);
         
         if (daysSinceCompleted >= TOUR_RESET_DAYS) {
-          // Passaram 20 dias - mostrar tour novamente
+          // Passaram 15 dias - mostrar tour novamente
           const timer = setTimeout(() => {
             setRunTour(true);
             setIsLoading(false);
@@ -40,7 +40,7 @@ export function useTourStatus(user: User | null) {
           
           return () => clearTimeout(timer);
         } else {
-          // Ainda não passaram 20 dias
+          // Ainda não passaram 15 dias
           setIsLoading(false);
         }
       } catch (error) {
