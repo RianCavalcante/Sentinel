@@ -20,6 +20,13 @@ export interface AlertItem {
   workflowName?: string;
   workflowId?: string;
   severity?: string;
+  // AI/Enrichment fields
+  suggestion?: string;
+  possibleCause?: string;
+  errorType?: string;
+  executionId?: string;
+  node?: string;
+  directLink?: string;
 }
 
 export interface DateRange {

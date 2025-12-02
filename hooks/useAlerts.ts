@@ -73,7 +73,14 @@ export function useAlerts({ page = 1, pageSize = 20, filters }: UseAlertsParams 
           status: item.status as ErrorStatus,
           priority: item.priority as ErrorPriority,
           timestamp: item.created_at,
-          workflowName: item.workflow_name
+          workflowName: item.workflow_name,
+          // Map new AI fields directly from DB columns
+          suggestion: item.suggestion,
+          possibleCause: item.possible_cause,
+          errorType: item.error_type,
+          executionId: item.execution_id,
+          node: item.node_name || item.node, // Handle both potential column names
+          directLink: item.direct_link
         }));
         setAlerts(formattedAlerts);
       }
@@ -101,11 +108,23 @@ export function useAlerts({ page = 1, pageSize = 20, filters }: UseAlertsParams 
             status: payload.new.status as ErrorStatus,
             priority: payload.new.priority as ErrorPriority,
             timestamp: payload.new.created_at,
-            workflowName: payload.new.workflow_name
+            workflowName: payload.new.workflow_name,
+            // Map new AI fields for realtime updates
+            suggestion: payload.new.suggestion,
+            possibleCause: payload.new.possible_cause,
+            errorType: payload.new.error_type,
+            executionId: payload.new.execution_id,
+            node: payload.new.node_name || payload.new.node,
+            directLink: payload.new.direct_link
           };
           
-          // Adicionar no início da lista (mais recente primeiro)
-          setAlerts(prev => [newAlert, ...prev]);
+          // Adicionar no início da lista (mais recente primeiro), evitando duplicatas
+          setAlerts(prev => {
+            if (prev.some(alert => alert.id === newAlert.id)) {
+              return prev;
+            }
+            return [newAlert, ...prev];
+          });
           
           // Notificar sobre novo alerta
           if (filters?.onNewAlert) {
@@ -122,7 +141,7 @@ export function useAlerts({ page = 1, pageSize = 20, filters }: UseAlertsParams 
       devLog('🔌 Desconectando Realtime...');
       subscription.unsubscribe();
     };
-  }, [fetchAlerts, filters]);
+  }, [fetchAlerts]); // Removed 'filters' to prevent duplicate subscriptions
 
   async function updateStatus(id: string, status: ErrorStatus) {
     // Otimistic update
@@ -171,7 +190,14 @@ export function useAlerts({ page = 1, pageSize = 20, filters }: UseAlertsParams 
       status: data.status as ErrorStatus,
       priority: data.priority as ErrorPriority,
       timestamp: data.created_at,
-      workflowName: data.workflow_name
+      workflowName: data.workflow_name,
+      // Map AI fields
+      suggestion: data.suggestion,
+      possibleCause: data.possible_cause,
+      errorType: data.error_type,
+      executionId: data.execution_id,
+      node: data.node_name || data.node,
+      directLink: data.direct_link
     } as AlertItem;
   }
 

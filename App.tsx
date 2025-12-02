@@ -20,14 +20,28 @@ const parseAiMessage = (fullText: string) => {
     const match = fullText.match(regex);
     return match ? match[1].trim() : null;
   };
+
+  // Extract multi-line sections
+  const extractSection = (startPattern: string) => {
+    const regex = new RegExp(`${startPattern}([\\s\\S]*?)(?=\\n(?:🛑|🧾|🧩|📍|📅|⚠️|❌|✅|🕵️|$))`, 'i');
+    const match = fullText.match(regex);
+    return match ? match[1].trim() : null;
+  };
+
+  // Support for both standard and emoji-based formats
   return {
-    executionId: extract(/ID da Execução:\s*(\d+)/) || 'N/A',
-    directLink: extract(/Link direto:\s*(https?:\/\/[^\s]+)/),
-    failingNode: extract(/Último nó executado:\s*(.+)/) || 'Desconhecido',
-    errorType: extract(/Tipo de erro:\s*(.+)/) || 'Erro desconhecido',
-    errorMessage: extract(/Mensagem:\s*(.+)/) || 'Sem mensagem',
-    suggestion: extract(/Sugestão:\s*(.+)/) || 'Sem sugestão',
-    possibleCause: extract(/Possível causa:\s*(.+)/) || 'Desconhecida',
+    executionId: extract(/(?:ID da Execução|Execution ID)[^\d]*(\d+)/i),
+    directLink: extract(/(?:Link direto|Link)[^\w]*(https?:\/\/[^\s]+)/i),
+    failingNode: extract(/(?:Erro na Execução do Node|Último nó executado)[^\w"]*["']?([^"'\n]+)["']?/i),
+    errorType: extract(/(?:Tipo de erro|Error Type)[:\s]*([^\n]+)/i),
+    errorMessage: extract(/(?:Mensagem técnica|Mensagem)[:\s]*([^\n]+)/i),
+    workflowName: extract(/(?:Nome do Workflow|Workflow Name)[:\s]*([^\n]+)/i),
+    // Extract full sections
+    errorSummary: extractSection('❌\\s*Resumo do Erro'),
+    recommendation: extractSection('✅\\s*Ação recomendada'),
+    devTip: extractSection('🕵️‍♂️\\s*Dica'),
+    possibleCause: extract(/(?:Causa provável|Possible cause)[:\s]*([^\n]+)/i),
+    suggestion: extract(/(?:Ação recomendada|Sugestão|Suggestion)[:\s]*([^\n]+)/i),
   };
 };
 
@@ -36,21 +50,25 @@ const mapSupabaseToFrontend = (alert: AlertItem): any => {
   return {
     id: alert.id,
     timestamp: alert.timestamp,
-    workflow_name: alert.workflowName || 'Workflow Desconhecido',
-    workflow: { name: alert.workflowName || 'Workflow Desconhecido', id: alert.workflowId || 'N/A' },
-    node: parsed.failingNode || 'Desconhecido',
-    errorCode: parsed.errorType || 'N/A',
+    workflow_name: alert.workflowName || parsed.workflowName || 'Workflow Desconhecido',
+    workflow: { name: alert.workflowName || parsed.workflowName || 'Workflow Desconhecido', id: alert.workflowId || 'N/A' },
+    node: alert.node || parsed.failingNode || 'Desconhecido',
+    errorCode: alert.errorType || parsed.errorType || 'N/A',
     message: alert.message || 'Sem mensagem',
     severity: alert.severity || 'média',
     status: alert.status || ErrorStatus.New,
     priority: alert.priority || 'Média',
     details: {
-      errorType: parsed.errorType,
-      executionId: parsed.executionId,
-      directLink: parsed.directLink,
-      suggestion: parsed.suggestion,
-      possibleCause: parsed.possibleCause,
-      errorMessage: parsed.errorMessage,
+      errorType: alert.errorType || parsed.errorType,
+      executionId: alert.executionId || parsed.executionId,
+      directLink: alert.directLink || parsed.directLink,
+      suggestion: alert.suggestion || parsed.suggestion,
+      possibleCause: alert.possibleCause || parsed.possibleCause,
+      errorMessage: parsed.errorMessage || alert.message,
+      // New structured sections
+      errorSummary: parsed.errorSummary,
+      recommendation: parsed.recommendation,
+      devTip: parsed.devTip,
     },
   };
 };
@@ -168,81 +186,237 @@ const DetailSidebar = ({ error, onClose, onResolve }: any) => {
     }
     onClose();
   };
+
+  // Helper to copy text
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // Optional: show a small tooltip or toast here
+  };
   
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 w-full md:w-[500px] bg-[#0a0a0c] border-l border-white/10 z-50 overflow-y-auto animate-slide-in">
-        <div className="sticky top-0 bg-[#0a0a0c]/80 backdrop-blur-xl border-b border-white/5 p-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-100">Detalhes do Erro</h2>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
+      <div className="fixed right-0 top-0 bottom-0 w-full md:w-[600px] bg-[#0a0a0c] border-l border-white/10 z-50 overflow-y-auto animate-slide-in shadow-2xl shadow-black">
+        {/* Header */}
+        <div className="sticky top-0 bg-[#0a0a0c]/95 backdrop-blur-xl border-b border-white/5 p-6 flex items-center justify-between z-10">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${error.status === 'resolvido' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+              {error.status === 'resolvido' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-100 leading-tight">Detalhes do Erro</h2>
+              <p className="text-xs text-zinc-500 font-mono mt-0.5">ID: {error.id.slice(0, 8)}...</p>
+            </div>
+          </div>
           <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg transition-colors text-zinc-500 hover:text-zinc-200"><X size={20} /></button>
         </div>
         
-        <div className="p-6 space-y-6">
-          <div>
-            <Badge severity={error.severity} status={error.status} />
-            {error.isGroup && <span className="ml-2 text-xs bg-white/10 text-zinc-200 px-2 py-1 rounded font-mono border border-white/5">{error.count}x ocorrências</span>}
-          </div>
-          
-          <div>
-            <h3 className="text-sm font-medium text-zinc-500 mb-2">Workflow</h3>
-            <p className="text-zinc-200 font-medium">{error.workflow.name}</p>
-          </div>
-          
-          <div>
-            <h3 className="text-sm font-medium text-zinc-500 mb-2">Nó com Falha</h3>
-            <p className="text-zinc-200">{error.node}</p>
-          </div>
-          
-          <div>
-            <h3 className="text-sm font-medium text-zinc-500 mb-2">Tipo de Erro</h3>
-            <code className="block bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-zinc-300 font-mono">{error.details.errorType}</code>
-          </div>
-          
-          <div>
-            <h3 className="text-sm font-medium text-zinc-500 mb-2">Mensagem</h3>
-            <p className="text-zinc-300 text-sm leading-relaxed">{error.details.errorMessage}</p>
-          </div>
-          
-          {error.details.possibleCause && (
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle size={18} className="text-yellow-400 mt-0.5 shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-yellow-400 mb-1">Possível Causa</h3>
-                  <p className="text-zinc-300 text-sm">{error.details.possibleCause}</p>
-                </div>
+        <div className="p-6 space-y-8">
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 hover:bg-white/[0.04] transition-colors">
+              <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2">
+                <Activity size={14} /> Workflow
+              </div>
+              <div className="text-zinc-200 font-medium truncate" title={error.workflow.name}>{error.workflow.name}</div>
+            </div>
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 hover:bg-white/[0.04] transition-colors">
+              <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2">
+                <Database size={14} /> Nó com Falha
+              </div>
+              <div className="text-zinc-200 font-medium truncate" title={error.node}>{error.node}</div>
+            </div>
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 hover:bg-white/[0.04] transition-colors">
+              <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2">
+                <AlertCircle size={14} /> Tipo de Erro
+              </div>
+              <code className="text-xs bg-white/10 px-2 py-1 rounded text-zinc-300 font-mono border border-white/5">{error.details.errorType}</code>
+            </div>
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 hover:bg-white/[0.04] transition-colors">
+              <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2">
+                <Clock size={14} /> Ocorrência
+              </div>
+              <div className="text-zinc-200 font-medium text-sm">
+                {new Date(error.timestamp).toLocaleString('pt-BR')}
               </div>
             </div>
-          )}
-          
-          {error.details.suggestion && (
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <Check size={18} className="text-blue-400 mt-0.5 shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-blue-400 mb-1">Sugestão</h3>
-                  <p className="text-zinc-300 text-sm">{error.details.suggestion}</p>
-                </div>
-              </div>
+          </div>
+
+          {/* AI Analysis Section */}
+          {/* AI Analysis Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-zinc-100 font-semibold">
+              <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+              Análise Inteligente
             </div>
-          )}
+            
+            <div className="space-y-3">
+              {/* Error Summary Section */}
+              {(error.details.errorSummary || error.details.errorType || error.details.errorMessage) && (
+                <div className="bg-gradient-to-br from-red-950/30 to-red-900/20 border border-red-500/20 rounded-xl overflow-hidden backdrop-blur-sm transition-all duration-300 hover:border-red-500/40 hover:shadow-lg hover:shadow-red-500/10 hover:scale-[1.02] group/card">
+                  <div className="p-5 relative overflow-hidden">
+                    {/* Animated background glow */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 to-red-500/0 group-hover/card:from-red-500/5 group-hover/card:to-transparent transition-all duration-500"></div>
+                    
+                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 z-10">
+                      <button onClick={() => copyToClipboard(error.details.errorSummary || `${error.details.errorType}: ${error.details.errorMessage}`)} className="p-1.5 text-zinc-500 hover:text-zinc-300 bg-black/40 hover:bg-black/60 rounded-md backdrop-blur-xl transition-all hover:scale-110">
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                    
+                    <div className="flex gap-4 relative z-0">
+                      <div className="p-2 bg-red-500/10 rounded-lg h-fit border border-red-500/20 shrink-0 transition-all duration-300 group-hover/card:bg-red-500/20 group-hover/card:border-red-500/40 group-hover/card:scale-110 group-hover/card:rotate-3">
+                        <AlertCircle size={18} className="text-red-400 transition-all duration-300 group-hover/card:text-red-300" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium text-red-200 mb-2 transition-colors duration-300 group-hover/card:text-red-100">❌ Resumo do Erro</h3>
+                        {error.details.errorSummary ? (
+                          <div className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap transition-colors duration-300 group-hover/card:text-zinc-300">{error.details.errorSummary}</div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {error.details.errorType && (
+                              <div><span className="text-zinc-500">Tipo:</span> <code className="text-xs bg-white/10 px-2 py-0.5 rounded text-red-300 font-mono transition-all duration-300 group-hover/card:bg-white/20 group-hover/card:text-red-200">{error.details.errorType}</code></div>
+                            )}
+                            {error.details.errorMessage && (
+                              <div><span className="text-zinc-500">Mensagem:</span> <span className="text-zinc-400 transition-colors duration-300 group-hover/card:text-zinc-300">{error.details.errorMessage}</span></div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Possible Cause */}
+              {error.details.possibleCause && (
+                <div className="bg-gradient-to-br from-orange-950/30 to-orange-900/20 border border-orange-500/20 rounded-xl overflow-hidden backdrop-blur-sm transition-all duration-300 hover:border-orange-500/40 hover:shadow-lg hover:shadow-orange-500/10 hover:scale-[1.02] group/card">
+                  <div className="p-5 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/0 to-orange-500/0 group-hover/card:from-orange-500/5 group-hover/card:to-transparent transition-all duration-500"></div>
+                    
+                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 z-10">
+                      <button onClick={() => copyToClipboard(error.details.possibleCause)} className="p-1.5 text-zinc-500 hover:text-zinc-300 bg-black/40 hover:bg-black/60 rounded-md backdrop-blur-xl transition-all hover:scale-110">
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                    
+                    <div className="flex gap-4 relative z-0">
+                      <div className="p-2 bg-orange-500/10 rounded-lg h-fit border border-orange-500/20 shrink-0 transition-all duration-300 group-hover/card:bg-orange-500/20 group-hover/card:border-orange-500/40 group-hover/card:scale-110 group-hover/card:rotate-3">
+                        <Search size={18} className="text-orange-400 transition-all duration-300 group-hover/card:text-orange-300" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium text-orange-200 mb-2 transition-colors duration-300 group-hover/card:text-orange-100">🔍 Diagnóstico da Causa</h3>
+                        <p className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap transition-colors duration-300 group-hover/card:text-zinc-300">{error.details.possibleCause}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {(error.details.recommendation || error.details.suggestion) && (
+                <div className="bg-gradient-to-br from-emerald-950/30 to-emerald-900/20 border border-emerald-500/20 rounded-xl overflow-hidden backdrop-blur-sm transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:scale-[1.02] group/card">
+                  <div className="p-5 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/0 group-hover/card:from-emerald-500/5 group-hover/card:to-transparent transition-all duration-500"></div>
+                    
+                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 z-10">
+                      <button onClick={() => copyToClipboard(error.details.recommendation || error.details.suggestion)} className="p-1.5 text-zinc-500 hover:text-zinc-300 bg-black/40 hover:bg-black/60 rounded-md backdrop-blur-xl transition-all hover:scale-110">
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                    
+                    <div className="flex gap-4 relative z-0">
+                      <div className="p-2 bg-emerald-500/10 rounded-lg h-fit border border-emerald-500/20 shrink-0 transition-all duration-300 group-hover/card:bg-emerald-500/20 group-hover/card:border-emerald-500/40 group-hover/card:scale-110 group-hover/card:rotate-3">
+                        <TrendingUp size={18} className="text-emerald-400 transition-all duration-300 group-hover/card:text-emerald-300" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium text-emerald-200 mb-2 transition-colors duration-300 group-hover/card:text-emerald-100">✅ Ação Recomendada</h3>
+                        <div className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap transition-colors duration-300 group-hover/card:text-zinc-300">{error.details.recommendation || error.details.suggestion}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Dev Tip */}
+              {error.details.devTip && (
+                <div className="bg-gradient-to-br from-purple-950/30 to-purple-900/20 border border-purple-500/20 rounded-xl overflow-hidden backdrop-blur-sm transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10 hover:scale-[1.02] group/card">
+                  <div className="p-5 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-500/0 group-hover/card:from-purple-500/5 group-hover/card:to-transparent transition-all duration-500"></div>
+                    
+                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 z-10">
+                      <button onClick={() => copyToClipboard(error.details.devTip)} className="p-1.5 text-zinc-500 hover:text-zinc-300 bg-black/40 hover:bg-black/60 rounded-md backdrop-blur-xl transition-all hover:scale-110">
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                    
+                    <div className="flex gap-4 relative z-0">
+                      <div className="p-2 bg-purple-500/10 rounded-lg h-fit border border-purple-500/20 shrink-0 transition-all duration-300 group-hover/card:bg-purple-500/20 group-hover/card:border-purple-500/40 group-hover/card:scale-110 group-hover/card:rotate-3">
+                        <Layers size={18} className="text-purple-400 transition-all duration-300 group-hover/card:text-purple-300" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium text-purple-200 mb-2 transition-colors duration-300 group-hover/card:text-purple-100">🕵️‍♂️ Dica para Devs</h3>
+                        <p className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap italic transition-colors duration-300 group-hover/card:text-zinc-300">{error.details.devTip}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Properties Grid */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-zinc-500 uppercase tracking-wider">Propriedades</h3>
+            <div className="grid grid-cols-2 gap-3">
+               <div className="bg-[#050507] rounded-lg border border-white/5 p-3">
+                 <div className="text-xs text-zinc-500 mb-1">ID da Execução</div>
+                 <div className="text-sm text-zinc-300 font-mono">{error.details.executionId || 'N/A'}</div>
+               </div>
+               <div className="bg-[#050507] rounded-lg border border-white/5 p-3">
+                 <div className="text-xs text-zinc-500 mb-1">Prioridade</div>
+                 <div className="text-sm text-zinc-300">{error.priority}</div>
+               </div>
+               <div className="bg-[#050507] rounded-lg border border-white/5 p-3">
+                 <div className="text-xs text-zinc-500 mb-1">Status</div>
+                 <div className="text-sm text-zinc-300 capitalize">{error.status}</div>
+               </div>
+               <div className="bg-[#050507] rounded-lg border border-white/5 p-3">
+                 <div className="text-xs text-zinc-500 mb-1">ID do Erro</div>
+                 <div className="text-sm text-zinc-300 font-mono truncate" title={error.id}>{error.id}</div>
+               </div>
+            </div>
+          </div>
+
+          {/* Technical Details */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-zinc-500 uppercase tracking-wider">Log Técnico</h3>
+            <div className="bg-[#050507] rounded-xl border border-white/10 p-4 font-mono text-xs text-zinc-400 overflow-x-auto relative group">
+              <button onClick={() => copyToClipboard(error.details.errorMessage)} className="absolute top-2 right-2 p-1.5 text-zinc-600 hover:text-zinc-300 bg-white/5 rounded opacity-0 group-hover:opacity-100 transition-opacity"><Copy size={12} /></button>
+              <pre className="whitespace-pre-wrap break-all">{error.details.errorMessage}</pre>
+            </div>
+          </div>
           
-          {error.details.directLink && (
-            <a href={error.details.directLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors">
-              <ExternalLink size={16} />
-              Ver execução no n8n
-            </a>
-          )}
-          
-          <div className="pt-4 border-t border-white/10 flex gap-3">
-            {error.status !== 'resolvido' && (
-              <button onClick={handleResolve} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
-                <Check size={18} />
-                Marcar como Resolvido
-              </button>
+          {/* Actions */}
+          <div className="pt-6 border-t border-white/10 flex flex-col gap-3">
+            {error.details.directLink && (
+              <a href={error.details.directLink} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 rounded-xl transition-all group">
+                <span>Abrir Execução no n8n</span>
+                <ExternalLink size={16} className="group-hover:translate-x-0.5 transition-transform" />
+              </a>
             )}
-            <button onClick={onClose} className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-lg font-medium transition-colors">Fechar</button>
+            
+            <div className="flex gap-3">
+              {error.status !== 'resolvido' && (
+                <button onClick={handleResolve} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-xl font-medium transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 hover:translate-y-[-1px]">
+                  <Check size={18} />
+                  Marcar como Resolvido
+                </button>
+              )}
+              <button onClick={onClose} className="px-6 py-3 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-xl font-medium transition-colors border border-white/5">
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -683,7 +857,7 @@ export default function App() {
                 <table className="w-full text-left min-w-[800px] md:min-w-0">
                   <thead>
                     <tr className="border-b border-white/5 text-[11px] uppercase tracking-wider font-medium text-zinc-600">
-                      <th className="px-6 py-3 font-medium">Status</th><th className="px-6 py-3 font-medium">Workflow</th><th className="px-6 py-3 font-medium">Erro</th><th className="px-6 py-3 font-medium">Nó</th><th className="px-6 py-3 font-medium text-left">Data</th><th className="px-6 py-3 font-medium text-left">Hora</th><th className="px-6 py-3"></th>
+                      <th className="px-6 py-3 font-medium">Prioridade</th><th className="px-6 py-3 font-medium">Workflow</th><th className="px-6 py-3 font-medium">Erro</th><th className="px-6 py-3 font-medium">Nó</th><th className="px-6 py-3 font-medium text-left">Data</th><th className="px-6 py-3 font-medium text-left">Hora</th><th className="px-6 py-3"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
@@ -692,11 +866,7 @@ export default function App() {
                       return (
                         <tr key={error.id} onClick={() => setSelectedError(error)} className={`group transition-colors cursor-pointer text-sm animate-row ${error.status === 'resolvido' ? 'bg-zinc-900/20 opacity-60 hover:opacity-100' : 'hover:bg-white/[0.02]'} ${isFocused ? 'bg-white/[0.03] ring-1 ring-inset ring-white/10' : ''}`} style={{ animationDelay: `${index * 30}ms` }}>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <Badge severity={error.severity} status={error.status} />
-                              {error.isGroup && <span className="text-[10px] bg-white/10 text-zinc-200 px-1.5 py-0.5 rounded font-mono border border-white/5">{error.count}x</span>}
-                              {!error.isGroup && <span className="text-[10px] font-mono text-zinc-600">{error.priority}</span>}
-                            </div>
+                            <span className="text-xs font-medium text-zinc-400 capitalize">{error.priority}</span>
                           </td>
                           <td className="px-6 py-4 min-w-[200px]">
                             <div className="flex flex-col">
