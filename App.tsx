@@ -692,11 +692,7 @@ export default function App() {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       {isSidebarOpen && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={() => setIsSidebarOpen(false)} />)}
 
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute bottom-0 left-0 -mb-32 -ml-32 w-96 h-96 bg-zinc-500/5 rounded-full blur-[128px]"></div>
-        <div className="absolute top-0 right-0 -mt-32 -mr-32 w-96 h-96 bg-zinc-500/5 rounded-full blur-[128px]"></div>
-      </div>
+
 
       <div className={`fixed md:static inset-y-0 left-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-r border-white/5 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'w-20' : 'w-64'}`}>
         <div className={`p-6 mb-4 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
