@@ -466,7 +466,7 @@ export default function App() {
 
   useEffect(() => {
     const audio = new Audio('/notification.mp3');
-    audio.volume = 0.3;
+    audio.volume = 0.7; // Aumentado de 0.3 para 0.7
     audio.preload = 'auto';
     audio.load();
     audioRef.current = audio;
@@ -487,12 +487,23 @@ export default function App() {
     // SOM: Sempre tocar quando chegar erro novo
     if (audioRef.current) {
       try {
+        console.log('🔊 Tentando tocar som de notificação...');
         const sound = audioRef.current.cloneNode(true) as HTMLAudioElement;
-        sound.volume = 0.3;
+        sound.volume = 0.7; // Volume aumentado
         await sound.play();
+        console.log('✅ Som tocado com sucesso!');
       } catch (e) {
-        console.error('Erro ao tocar som:', e);
+        console.error('❌ Erro ao tocar som:', e);
+        // Fallback: tentar tocar o áudio original
+        try {
+          await audioRef.current.play();
+          console.log('✅ Som tocado via fallback!');
+        } catch (fallbackError) {
+          console.error('❌ Fallback também falhou:', fallbackError);
+        }
       }
+    } else {
+      console.warn('⚠️ audioRef.current está null');
     }
 
     // NOTIFICAÇÃO CHROME: Sempre enviar
