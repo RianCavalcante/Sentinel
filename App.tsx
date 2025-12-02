@@ -470,6 +470,22 @@ export default function App() {
     audio.preload = 'auto';
     audio.load();
     audioRef.current = audio;
+
+    // Listener para mensagens do Service Worker
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data.type === 'PLAY_SOUND') {
+        console.log('[App] 🔊 Recebido comando do SW para tocar som');
+        if (audioRef.current) {
+          audioRef.current.play().catch(e => console.error('[App] Erro ao tocar som:', e));
+        }
+      }
+    };
+
+    navigator.serviceWorker?.addEventListener('message', handleSWMessage);
+
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
+    };
   }, []);
 
   const handleNewAlert = React.useCallback(async (alert: AlertItem) => {
@@ -713,12 +729,7 @@ export default function App() {
       <div className={`fixed md:static inset-y-0 left-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-r border-white/5 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isCollapsed ? 'w-20' : 'w-64'}`}>
         <div className={`p-6 mb-4 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-2 text-zinc-100 font-medium tracking-tight">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-[14px] font-bold shadow-lg shadow-blue-500/20 shrink-0 transition-all hover:scale-105 hover:shadow-blue-500/40">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-            </div>
-            {!isCollapsed && <span className="animate-fade-in bg-gradient-to-r from-zinc-100 to-zinc-300 bg-clip-text text-transparent font-semibold">Sentinel</span>}
+            {!isCollapsed && <span className="animate-fade-in bg-gradient-to-r from-zinc-100 to-zinc-300 bg-clip-text text-transparent font-semibold text-lg">Sentinel</span>}
           </div>
           {!isCollapsed && (<button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-zinc-500 hover:text-white"><X size={18} /></button>)}
         </div>

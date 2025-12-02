@@ -22,9 +22,34 @@ self.addEventListener('message', (event) => {
   
   if (event.data.type === 'NEW_ERROR') {
     const { alert } = event.data;
+    
+    // Tocar som de notificação
+    playNotificationSound();
+    
+    // Mostrar notificação visual
     showNotification(alert);
   }
 });
+
+// Tocar som de notificação
+async function playNotificationSound() {
+  try {
+    console.log('[SW] 🔊 Tentando tocar som...');
+    
+    // Enviar mensagem para todas as abas abertas para tocar o som
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    
+    for (const client of clients) {
+      client.postMessage({
+        type: 'PLAY_SOUND'
+      });
+    }
+    
+    console.log('[SW] ✅ Comando de som enviado para', clients.length, 'cliente(s)');
+  } catch (error) {
+    console.error('[SW] ❌ Erro ao enviar comando de som:', error);
+  }
+}
 
 // Exibir notificação customizada
 function showNotification(alert) {
