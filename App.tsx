@@ -544,17 +544,18 @@ export default function App() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && !supabaseLoading) {
-      const timer = setTimeout(() => setLoading(false), 2000);
+    // Skeleton só aparece no carregamento inicial (login/refresh)
+    if (isAuthenticated && !supabaseLoading && !initialLoadComplete) {
+      const timer = setTimeout(() => {
+        setLoading(false);
+        setInitialLoadComplete(true);
+      }, 1500);
       return () => clearTimeout(timer);
     }
-    
-    if (!isAuthenticated || supabaseLoading) {
-      setLoading(true);
-    }
-  }, [isAuthenticated, supabaseLoading]);
+  }, [isAuthenticated, supabaseLoading, initialLoadComplete]);
 
   const [errors, setErrors] = useState<any[]>([]);
 
