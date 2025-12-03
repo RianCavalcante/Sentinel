@@ -92,21 +92,32 @@ const Badge = ({ severity, status }: { severity: string; status: string }) => {
   );
 };
 
-const NavItem = ({ icon: Icon, label, active, onClick, badge, collapsed }: any) => (
-  <button
-    onClick={onClick}
-    className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-      active ? 'bg-white/10 text-zinc-100 shadow-lg shadow-black/20' : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/5'
-    }`}
-  >
-    <div className="flex items-center gap-3">
-      <Icon size={18} className={active ? 'text-zinc-100' : ''} />
-      {!collapsed && <span>{label}</span>}
-    </div>
-    {!collapsed && badge !== undefined && badge > 0 && (
-      <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full font-mono border border-red-500/30">{badge}</span>
-    )}
-  </button>
+
+const NavItem = ({ icon: Icon, label, active, onClick, badge, collapsed, id }: any) => (
+  <div className="relative">
+    <input
+      type="radio"
+      id={id}
+      name="nav"
+      checked={active}
+      onChange={onClick}
+      className="peer absolute opacity-0 cursor-pointer"
+    />
+    <label
+      htmlFor={id}
+      className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-3 px-3 py-3 cursor-pointer text-sm font-medium transition-all relative z-10 ${
+        active ? 'text-red-400' : 'text-zinc-500 hover:text-zinc-200'
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <Icon size={18} className={active ? 'text-red-400' : ''} />
+        {!collapsed && <span>{label}</span>}
+      </div>
+      {!collapsed && badge !== undefined && badge > 0 && (
+        <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full font-mono border border-red-500/30">{badge}</span>
+      )}
+    </label>
+  </div>
 );
 
 const StatCard = ({ title, value, trend, color }: any) => {
@@ -688,6 +699,79 @@ export default function App() {
         ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        
+        /* Glider Navigation Styles */
+        .radio-container {
+          --main-color: #ef4444;
+          --main-color-opacity: #ef44441c;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          padding-left: 0.5rem;
+        }
+        .radio-container input {
+          cursor: pointer;
+          appearance: none;
+        }
+        .radio-container .glider-container {
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(27, 27, 27, 1) 50%, rgba(0, 0, 0, 0) 100%);
+          width: 1px;
+        }
+        .radio-container .glider-container .glider {
+          position: relative;
+          height: calc(100% / var(--total-radio));
+          width: 100%;
+          background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, var(--main-color) 50%, rgba(0, 0, 0, 0) 100%);
+          transition: transform 0.5s cubic-bezier(0.37, 1.95, 0.66, 0.56);
+        }
+        .radio-container .glider-container .glider::before {
+          content: "";
+          position: absolute;
+          height: 60%;
+          width: 300%;
+          top: 50%;
+          transform: translateY(-50%);
+          background: var(--main-color);
+          filter: blur(10px);
+        }
+        .radio-container .glider-container .glider::after {
+          content: "";
+          position: absolute;
+          left: 0;
+          height: 100%;
+          width: 150px;
+          background: linear-gradient(90deg, var(--main-color-opacity) 0%, rgba(0, 0, 0, 0) 100%);
+        }
+        .radio-container label {
+          cursor: pointer;
+          position: relative;
+          transition: all 0.3s ease-in-out;
+        }
+        .radio-container input:checked + label {
+          color: var(--main-color);
+        }
+        .radio-container input:nth-of-type(1):checked ~ .glider-container .glider {
+          transform: translateY(0);
+        }
+        .radio-container input:nth-of-type(2):checked ~ .glider-container .glider {
+          transform: translateY(100%);
+        }
+        .radio-container input:nth-of-type(3):checked ~ .glider-container .glider {
+          transform: translateY(200%);
+        }
+        .radio-container input:nth-of-type(4):checked ~ .glider-container .glider {
+          transform: translateY(300%);
+        }
+        .radio-container input:nth-of-type(5):checked ~ .glider-container .glider {
+          transform: translateY(400%);
+        }
+        .radio-container input:nth-of-type(6):checked ~ .glider-container .glider {
+          transform: translateY(500%);
+        }
       `}</style>
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -702,16 +786,19 @@ export default function App() {
           </div>
           {!isCollapsed && (<button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-zinc-500 hover:text-white"><X size={18} /></button>)}
         </div>
-        <div className="px-3 space-y-1 flex-1 overflow-y-auto overflow-x-hidden">
-          <NavItem icon={LayoutGrid} label="Visão Geral" active={activeView === 'overview'} onClick={() => {setActiveView('overview'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
-          <NavItem icon={Activity} label="Pendentes" active={activeView === 'live'} onClick={() => {setActiveView('live'); setStatusFilter('pendente'); setIsSidebarOpen(false);}} badge={totalErrorsCount} collapsed={isCollapsed} />
-          <NavItem icon={Archive} label="Resolvidos" active={activeView === 'resolved'} onClick={() => {setActiveView('resolved'); setStatusFilter('resolvido'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
-          <NavItem icon={Database} label="Todos os Logs" active={activeView === 'logs'} onClick={() => {setActiveView('logs'); setStatusFilter('todos'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
-          <NavItem icon={BarChart3} label="Analytics" active={activeView === 'analytics'} onClick={() => {setActiveView('analytics'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
-          <div className="my-4 border-t border-white/5 mx-3" />
-          <NavItem icon={Settings} label="Configurações" collapsed={isCollapsed} />
+        <div className="px-3 space-y-0 flex-1 overflow-y-auto overflow-x-hidden radio-container" style={{ '--total-radio': 6 } as any}>
+          <NavItem id="nav-overview" icon={LayoutGrid} label="Visão Geral" active={activeView === 'overview'} onClick={() => {setActiveView('overview'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+          <NavItem id="nav-live" icon={Activity} label="Pendentes" active={activeView === 'live'} onClick={() => {setActiveView('live'); setStatusFilter('pendente'); setIsSidebarOpen(false);}} badge={totalErrorsCount} collapsed={isCollapsed} />
+          <NavItem id="nav-resolved" icon={Archive} label="Resolvidos" active={activeView === 'resolved'} onClick={() => {setActiveView('resolved'); setStatusFilter('resolvido'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+          <NavItem id="nav-logs" icon={Database} label="Todos os Logs" active={activeView === 'logs'} onClick={() => {setActiveView('logs'); setStatusFilter('todos'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+          <NavItem id="nav-analytics" icon={BarChart3} label="Analytics" active={activeView === 'analytics'} onClick={() => {setActiveView('analytics'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+          <NavItem id="nav-settings" icon={Settings} label="Configurações" active={false} onClick={() => {}} collapsed={isCollapsed} />
+          
+          <div className="glider-container">
+            <div className="glider"></div>
+          </div>
         </div>
-        <div className="px-3 pb-2 hidden md:flex justify-end">
+        <div className="px-3 pb-2 hidden md:flex justify-end border-t border-white/5 mt-4 pt-2">
            <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-white/5 rounded-lg transition-colors">{isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}</button>
         </div>
         <div className={`p-4 m-3 rounded-lg bg-zinc-900/30 border border-white/5 flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
