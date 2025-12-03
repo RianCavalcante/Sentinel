@@ -94,14 +94,14 @@ const Badge = ({ severity, status }: { severity: string; status: string }) => {
 
 
 const NavItem = ({ icon: Icon, label, active, onClick, badge, collapsed, id }: any) => (
-  <div className="relative">
+  <>
     <input
       type="radio"
       id={id}
       name="nav"
       checked={active}
       onChange={onClick}
-      className="peer absolute opacity-0 cursor-pointer"
+      className="peer absolute opacity-0 cursor-pointer pointer-events-none"
     />
     <label
       htmlFor={id}
@@ -117,7 +117,7 @@ const NavItem = ({ icon: Icon, label, active, onClick, badge, collapsed, id }: a
         <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full font-mono border border-red-500/30">{badge}</span>
       )}
     </label>
-  </div>
+  </>
 );
 
 const StatCard = ({ title, value, trend, color }: any) => {
