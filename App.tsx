@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { LayoutGrid, Activity, Archive, Database, Settings, Menu, X, ChevronLeft, ChevronRight, Search, Bell, LogOut, Filter, Check, RefreshCw, Trash2, ArrowRight, CornerDownRight, AlertCircle, Clock, TrendingUp, TrendingDown, Calendar, ArrowUpRight, CheckCircle2, ExternalLink, Layers, Copy } from 'lucide-react';
+import { LayoutGrid, Activity, Archive, Database, Settings, Menu, X, ChevronLeft, ChevronRight, Search, Bell, LogOut, Filter, Check, RefreshCw, Trash2, ArrowRight, CornerDownRight, AlertCircle, Clock, TrendingUp, TrendingDown, Calendar, ArrowUpRight, CheckCircle2, ExternalLink, Layers, Copy, BarChart3 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { useAuth } from './hooks/useAuth';
 import { useProfile } from './hooks/useProfile';
@@ -12,6 +12,7 @@ import { ProfileModal } from './components/ProfileModal';
 import { OnboardingTour } from './components/OnboardingTour';
 import { useTourStatus } from './hooks/useTourStatus';
 import { signOut } from './lib/auth';
+import { AnalyticsView } from './components/AnalyticsView';
 
 
 const parseAiMessage = (fullText: string) => {
@@ -406,7 +407,7 @@ export default function App() {
   
   const [selectedError, setSelectedError] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeView, setActiveView] = useState('live');
+  const [activeView, setActiveView] = useState<'overview' | 'live' | 'resolved' | 'logs' | 'analytics'>('live');
   const [statusFilter, setStatusFilter] = useState<'pendente' | 'resolvido' | 'todos'>('pendente');
   const [severityFilter, setSeverityFilter] = useState<string>('todas');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -706,6 +707,7 @@ export default function App() {
           <NavItem icon={Activity} label="Pendentes" active={activeView === 'live'} onClick={() => {setActiveView('live'); setStatusFilter('pendente'); setIsSidebarOpen(false);}} badge={totalErrorsCount} collapsed={isCollapsed} />
           <NavItem icon={Archive} label="Resolvidos" active={activeView === 'resolved'} onClick={() => {setActiveView('resolved'); setStatusFilter('resolvido'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
           <NavItem icon={Database} label="Todos os Logs" active={activeView === 'logs'} onClick={() => {setActiveView('logs'); setStatusFilter('todos'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+          <NavItem icon={BarChart3} label="Analytics" active={activeView === 'analytics'} onClick={() => {setActiveView('analytics'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
           <div className="my-4 border-t border-white/5 mx-3" />
           <NavItem icon={Settings} label="Configurações" collapsed={isCollapsed} />
         </div>
@@ -723,7 +725,7 @@ export default function App() {
           <div className="flex items-center gap-3 md:gap-4">
             <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 -ml-2 text-zinc-500 hover:text-zinc-200"><Menu size={20} /></button>
             <div className="flex items-center gap-2 text-sm text-zinc-500 whitespace-nowrap overflow-hidden font-mono tracking-tight">
-              <span className="hidden sm:inline">Dashboards</span><span className="hidden sm:inline text-zinc-700">/</span><span className="text-zinc-200 truncate max-w-[150px] sm:max-w-none">{activeView === 'live' ? 'Erros Abertos' : activeView === 'resolved' ? 'Resolvidos' : 'Visão Geral'}</span>
+              <span className="hidden sm:inline">Dashboards</span><span className="hidden sm:inline text-zinc-700">/</span><span className="text-zinc-200 truncate max-w-[150px] sm:max-w-none">{activeView === 'live' ? 'Erros Abertos' : activeView === 'resolved' ? 'Resolvidos' : activeView === 'analytics' ? 'Analytics' : 'Visão Geral'}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4 ml-auto">
@@ -801,23 +803,27 @@ export default function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
-          <div className="kpi-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 md:mb-10">
-            {loading ? (
-              <>
-                <SkeletonKPI />
-                <SkeletonKPI />
-                <SkeletonKPI />
-                <SkeletonKPI />
-              </>
-            ) : (
-              <>
-                <StatCard title="Erros Abertos" value={totalErrorsCount} trend="+12%" color="red" />
-                <StatCard title="Tempo Médio" value="14m" trend="-8%" color="emerald" />
-                <StatCard title="Erros Críticos" value={criticalErrorsCount} trend="+2" color="red" />
-                <StatCard title="Erros Resolvidos" value={errors.filter(e => e.status === 'resolvido').length} trend="-5%" color="emerald" />
-              </>
-            )}
-          </div>
+          {activeView === 'analytics' ? (
+            <AnalyticsView errors={errors} />
+          ) : (
+            <>
+              <div className="kpi-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 md:mb-10">
+                {loading ? (
+                  <>
+                    <SkeletonKPI />
+                    <SkeletonKPI />
+                    <SkeletonKPI />
+                    <SkeletonKPI />
+                  </>
+                ) : (
+                  <>
+                    <StatCard title="Erros Abertos" value={totalErrorsCount} trend="+12%" color="red" />
+                    <StatCard title="Tempo Médio" value="14m" trend="-8%" color="emerald" />
+                    <StatCard title="Erros Críticos" value={criticalErrorsCount} trend="+2" color="red" />
+                    <StatCard title="Erros Resolvidos" value={errors.filter(e => e.status === 'resolvido').length} trend="-5%" color="emerald" />
+                  </>
+                )}
+              </div>
 
           <div className="error-table rounded-xl border border-white/10 bg-[#09090b]/60 backdrop-blur-md overflow-hidden flex flex-col shadow-2xl shadow-black/50">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-white/5 bg-zinc-900/20 gap-4">
@@ -893,6 +899,8 @@ export default function App() {
               <div className="flex gap-3"><span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white/5 rounded border border-white/10 font-mono">↓</kbd> <kbd className="px-1.5 py-0.5 bg-white/5 rounded border border-white/10 font-mono">↑</kbd> Navegar</span><span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-white/5 rounded border border-white/10 font-mono">ENTER</kbd> Abrir</span></div>
             </div>
           </div>
+            </>
+          )}
         </main>
       </div>
       <DetailSidebar error={selectedError} onClose={() => setSelectedError(null)} onResolve={handleResolve} />
