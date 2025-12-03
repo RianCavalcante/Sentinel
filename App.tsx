@@ -786,16 +786,18 @@ export default function App() {
           </div>
           {!isCollapsed && (<button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-zinc-500 hover:text-white"><X size={18} /></button>)}
         </div>
-        <div className="px-3 space-y-0 flex-1 overflow-y-auto overflow-x-hidden radio-container" style={{ '--total-radio': 6 } as any}>
-          <NavItem id="nav-overview" icon={LayoutGrid} label="Visão Geral" active={activeView === 'overview'} onClick={() => {setActiveView('overview'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
-          <NavItem id="nav-live" icon={Activity} label="Pendentes" active={activeView === 'live'} onClick={() => {setActiveView('live'); setStatusFilter('pendente'); setIsSidebarOpen(false);}} badge={totalErrorsCount} collapsed={isCollapsed} />
-          <NavItem id="nav-resolved" icon={Archive} label="Resolvidos" active={activeView === 'resolved'} onClick={() => {setActiveView('resolved'); setStatusFilter('resolvido'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
-          <NavItem id="nav-logs" icon={Database} label="Todos os Logs" active={activeView === 'logs'} onClick={() => {setActiveView('logs'); setStatusFilter('todos'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
-          <NavItem id="nav-analytics" icon={BarChart3} label="Analytics" active={activeView === 'analytics'} onClick={() => {setActiveView('analytics'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
-          <NavItem id="nav-settings" icon={Settings} label="Configurações" active={false} onClick={() => {}} collapsed={isCollapsed} />
-          
-          <div className="glider-container">
-            <div className="glider"></div>
+        <div className="px-3 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="radio-container relative space-y-0" style={{ '--total-radio': 6 } as any}>
+            <NavItem id="nav-overview" icon={LayoutGrid} label="Visão Geral" active={activeView === 'overview'} onClick={() => {setActiveView('overview'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+            <NavItem id="nav-live" icon={Activity} label="Pendentes" active={activeView === 'live'} onClick={() => {setActiveView('live'); setStatusFilter('pendente'); setIsSidebarOpen(false);}} badge={totalErrorsCount} collapsed={isCollapsed} />
+            <NavItem id="nav-resolved" icon={Archive} label="Resolvidos" active={activeView === 'resolved'} onClick={() => {setActiveView('resolved'); setStatusFilter('resolvido'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+            <NavItem id="nav-logs" icon={Database} label="Todos os Logs" active={activeView === 'logs'} onClick={() => {setActiveView('logs'); setStatusFilter('todos'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+            <NavItem id="nav-analytics" icon={BarChart3} label="Analytics" active={activeView === 'analytics'} onClick={() => {setActiveView('analytics'); setIsSidebarOpen(false);}} collapsed={isCollapsed} />
+            <NavItem id="nav-settings" icon={Settings} label="Configurações" active={false} onClick={() => {}} collapsed={isCollapsed} />
+            
+            <div className="glider-container">
+              <div className="glider"></div>
+            </div>
           </div>
         </div>
         <div className="px-3 pb-2 hidden md:flex justify-end border-t border-white/5 mt-4 pt-2">
